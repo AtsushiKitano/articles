@@ -199,36 +199,44 @@ import (
 
 func TestNetwork(t *testing.T) {
 	t.Parallel()
-	actualNetworkName := terraform.Output(t, terraformOptions, "network_name")
-    actualSubnetName := terraform.Output(t, terraformOptions, "subnetwork_name")
-    actualSubnetRegion := terraform.Output(t, terraformOptions, "subnetwork_region")
-    actualSubnetCidr := terraform.Output(t, terraformOptions, "subnetwork_cidr")
 
-	assert.Equal(t, actualNetworkName, "sample")
-    assert.Equal(t, actualSubnetName, "sample")
-    assert.Equal(t, actualSubnetRegion, "asia-northeast1")
-    assert.Equal(t, actualSubnetCidr, "192.168.10.0/24")
+	actualNetworkName := terraform.Output(t, terraformOptions, "network_name")
+	assert.Equal(t, "sample", actualNetworkName)
+
+	actualSubnetName := terraform.Output(t, terraformOptions, "subnetwork_name")
+	assert.Equal(t, "sample", actualSubnetName)
+
+	actualSubnetRegion := terraform.Output(t, terraformOptions, "subnetwork_region")
+	assert.Equal(t, "asia-northeast1", actualSubnetRegion)
+
+	actualSubnetCidr := terraform.Output(t, terraformOptions, "subnetwork_cidr")
+	assert.Equal(t, "192.168.10.0/24", actualSubnetCidr)
 }
 
 func TestFirewall(t *testing.T) {
 	t.Parallel()
+
 	actualFirewallName := terraform.Output(t, terraformOptions, "firewall_name")
+	assert.Equal(t, "ingress-sample", actualFirewallName)
+
 	actualFirewallDirection := terraform.Output(t, terraformOptions, "firewall_direction")
+	assert.Equal(t, "INGRESS", actualFirewallDirection)
+
 	actualFirewallPriority := terraform.Output(t, terraformOptions, "firewall_priority")
+	assert.Equal(t, "1000", actualFirewallPriority)
+
 	actualFirewallProtocol := terraform.Output(t, terraformOptions, "firewall_allow_rules_protocol")
-	actualFirewallPorts := terraform.OutputList(t, terraformOptions, "firewall_allow_rules_ports")
+	assert.Equal(t, "tcp", actualFirewallProtocol)
+
+	expectedSrcRanges := []string{"0.0.0.0/0"}
 	actualFirewallSrcRanges := terraform.OutputList(t, terraformOptions, "firewall_src_ranges")
+	assert.Equal(t, expectedSrcRanges, actualFirewallSrcRanges)
 
-	expected_src_ranges := []string{"0.0.0.0/0"}
-	expected_firewall_ports := []string{"80"}
-
-	assert.Equal(t, actualFirewallName, "ingress-sample")
-	assert.Equal(t, actualFirewallDirection, "INGRESS")
-	assert.Equal(t, actualFirewallSrcRanges, expected_src_ranges)
-	assert.Equal(t, actualFirewallPorts, expected_firewall_ports)
-	assert.Equal(t, actualFirewallPriority, "1000")
-	assert.Equal(t, actualFirewallProtocol, "tcp")
+	expectedFirewallPorts := []string{"80"}
+	actualFirewallPorts := terraform.OutputList(t, terraformOptions, "firewall_allow_rules_ports")
+	assert.Equal(t, expectedFirewallPorts, actualFirewallPorts)
 }
+
 ```
  上記の注意点としては、outputブロックの値がlistとなっている場合、list型を変数に入力するには `terraform.OutputList`を使う必要があります。その他の型を変数に入力する必要がある場合は、[公式ページ](https://pkg.go.dev/github.com/gruntwork-io/terratest/modules/terraform#Output)を参照してください。
 
@@ -247,25 +255,32 @@ import (
 
 func TestGCE(t *testing.T) {
 	t.Parallel()
-	actualGCEName := terraform.Output(t, terraformOptions, "gce_name")
-	actualGCEMachineType := terraform.Output(t, terraformOptions, "gce_machine_type")
-	actualGCEZone := terraform.Output(t, terraformOptions, "gce_zone")
-	actualGCEDiskSize := terraform.Output(t, terraformOptions, "gce_boot_disk_size")
-	actualGCEDiskImage := terraform.Output(t, terraformOptions, "gce_boot_disk_image")
 
-	assert.Equal(t, actualGCEName, "sample")
-	assert.Equal(t, actualGCEMachineType, "f1-micro")
-	assert.Equal(t, actualGCEZone, "asia-northeast1-b")
-	assert.Equal(t, actualGCEDiskSize, "20")
-	assert.Contains(t, actualGCEDiskImage, "ubuntu-os-cloud/global/images/ubuntu-2004")
+	actualGCEName := terraform.Output(t, terraformOptions, "gce_name")
+	assert.Equal(t, "sample", actualGCEName)
+
+	actualGCEMachineType := terraform.Output(t, terraformOptions, "gce_machine_type")
+	assert.Equal(t, "f1-micro", actualGCEMachineType)
+
+	actualGCEZone := terraform.Output(t, terraformOptions, "gce_zone")
+	assert.Equal(t, "asia-northeast1-b", actualGCEZone)
+
+	actualGCEDiskSize := terraform.Output(t, terraformOptions, "gce_boot_disk_size")
+	assert.Equal(t, "20", actualGCEDiskSize)
+
+	actualGCEDiskImage := terraform.Output(t, terraformOptions, "gce_boot_disk_image")
+	assert.Contains(t, "ubuntu-os-cloud/ubuntu-2004-lts", actualGCEDiskImage)
 }
+
 ```
 
 最後にNginxとの疎通テスト(functional_test.go)をするコードは、以下のようになります。
 
 ```
+package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/gruntwork-io/terratest/modules/http-helper"
@@ -274,13 +289,12 @@ import (
 
 func TestConnection(t *testing.T) {
 	t.Parallel()
-	ip := terraform.OutputList(t, terraformOptions, "gce_global_ip")[0]
-	url := "http://" + ip + ":80"
+
+	ipAddressList := terraform.OutputList(t, terraformOptions, "gce_global_ip")
+	url := fmt.Sprintf("http://%s:80", ipAddressList[0])
 
 	statusCode, _ := http_helper.HTTPDo(t, "GET", url, nil, nil, nil)
-	expectedCode := 200
-
-	if statusCode != expectedCode {
+	if expectedCode := 200; statusCode != expectedCode {
 		t.Errorf("handler returned wrong status code: got %v want %v", statusCode, expectedCode)
 	}
 }
