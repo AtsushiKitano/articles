@@ -63,9 +63,20 @@ README.mdは処理に関係しませんが、モジュールに必要なvariable
 
 - VPC
 
-|||
+| 項目 | 内容               |
+| ---  | ---                |
+| name | tagに設定するVPC名 |
+| cidr | cidr_block         |
 
 - サブネット
+
+| 項目 | 内容               |
+| ---  | ---                |
+| name | tagに設定するサブネット名 |
+| cidr | cidr_block         |
+| az   | availability_zone  |
+
+
 - ネットワークACL
 - ルートテーブル
 - インターネットゲートウェイ
