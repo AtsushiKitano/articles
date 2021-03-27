@@ -2,8 +2,8 @@
 title: TerraformのModuleを使ったAWSリソースの作り方
 emoji: 🗂
 type: tech
-topics: [Terraform, aws]
-published: false
+topics: [Terraform, AWS]
+published: true
 ---
 
 # 概要
