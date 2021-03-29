@@ -9,8 +9,6 @@ published: false
 # 概要
 Terraformのループ処理の`for_each`,`for`について説明します。
 
-記事で使っているコードは[このリポジトリ]()を使っています。
-
 # はじめに
 Terraformではループ処理として、次の2つの処理を提供しています。
 
@@ -32,6 +30,8 @@ Terraformのリソースのループ処理としては以下の機能を提供�
 - resource
 - module
 - data
+
+この記事では`for_each`文のみを紹介します。
 
 ## `for_each`によるリソースのループ処理
 `for_each`のループ処理は、Terraform v0.12から`resource`ブロックで提供しはじめました。また、その他のブロックは順次対応していきました。現在、2021年3月時点のGAとなっているv0.14では、`resource`,`module`,`data`ブロックで機能を提供しています。そのため、古いバージョンを使っている場合は利用できないので、注意してください。
@@ -131,7 +131,7 @@ resource google_compute_network main {
 }
 ```
 
-上記のように、`map`型の各値`cidr`と`region`を`each.value.cidr`,`each.value.region`と呼び出しています。`name`は`map`のキー値とするため、`each.key`として代入しています。
+上記のように、`map`型の各値`cidr`と`region`を`each.value.cidr`,`each.value.region`で参照しています。`name`は`map`のキー値としているため、`each.key`で参照しています。
 
 上記のコードの処理内容は、以下のようになります。
 
@@ -195,14 +195,16 @@ Plan: 3 to add, 0 to change, 0 to destroy.
 
 ```
 
-上記から分かるように`for_each`でループを回すと、Collectionのキー値の配列としてデータが格納されます。(`google_compute_subnetwork.main["osaka-network"]`,`google_compute_subnetwork.main["tokyo-network"]`のようになります。)
-また、`strings`型を入力すると、各文字列がキー値として入力されます。そのため、キーおよびデータの値はそれぞれ`each.key`,`each.value`として取得します。
+`for_each`でループ処理をおこなうと、`<block name>.<block instance name>["each.key"]`でリソースのオブジェクトが作成され。上記の例であれば、`google_compute_subnetwork.main["osaka-network"]`,`google_compute_subnetwork.main["tokyo-network"]`のようにサブネットワークの各リソースオブジェクトが作成されます。
+
+また、`strings`型を`for_each`に入力すると、各文字列がキー値、データ値として入力されます。そのため、キーおよびデータへは`each.key`,`each.value`で参照できます。
 
 #### リソースブロックのループさせるブロックの直前への定義
-リソースブロック内のブロック直前にfor_eachを定義することで、そのブロックをfor_eachに入力されるCollection型のデータサイズ分繰り返し実行されます。この定義は、`resource`ブロックのみとなっています。`output`や`module`では定義できません。
+リソースブロック内のブロック直前に`for_each`を定義することで、そのブロックを`for_each`に入力されるCollection型のデータサイズ分繰り返し実行されます。この機能は、`resource`ブロックのみとなっています。`output`や`module`では定義できません。また、入力できるデータ型としては、strings,mapに加え配列も可能となっています。
 
-定義の方法は、ループされる前に`dynamic`ブロックを定義し、中身の値を`content`ブロックを内部に定義し値を代入します。
-例えば、`google_compute_firewall`のリソース内には`allow`ブロックがあります。このブロックはファイアーフォールで許可するプロトコルとポートを定義します。`icmp`と`tcp:22`, `udp:80,82`を許可するとき、以下のように`map`型でプロトコルとポートを定義します。
+ブロック機能の繰り返しの定義の方法は、ループされる前に`dynamic <block name>`と定義し、ブロックの中身の値を`content`ブロックを内部に定義し値を代入します。`for_each`は`dynamic`と`content`の間で定義します。
+
+例えば、`google_compute_firewall`のリソース内には`allow`ブロックがあります。このブロックはファイアーフォールで許可する通信のプロトコルとポートを定義します。`icmp`と`tcp:22`, `udp:80,82`を許可するとき、以下の`firewall_allow_rules`と許可する通信のプロトコルとポートをオブジェクト型の配列で定義したとします。この`firewall_allow_rules`のデータで`google_compute_firewall`の`allow`ブロックを繰り返し実行する方法は以下のようになります。
 
 ```
 locals {
@@ -242,9 +244,13 @@ resource google_compute_network main {
   auto_create_subnetworks = false
 }
 ```
-`dynamic <block name>`としてブロック前に定義します。`<block name>`は繰り返し実行する`block`名を記述します。ここでは、`allow`ブロックを繰り返すため、`dynamic allow`と定義します。
-そして、ブロック内部で代入する項目は`content`ブロックに記述します。`for_each`は`dynamic`と`content`との間で定義します。`dynamic`と`content`との間には`iterator`も定義することが可能です。
-この`iterator`は`for_each`の値を参照するときの`prefix`として参照する値となります。`iterator`を定義しないとき、`<ブロック名.value.変数名>`として参照します。ここで、`iterator`を記述しないと、`allow.value.protocol`という様に値を参照させます。
+`allow`ブロックを繰り返し実行するため、`dynamic allow {}`と定義します。
+
+`for_each`は`dynamic`の下に定義されています。
+
+`for_each`の下に`iterator`が定義されています。この`iterator`は、`for_each`に入力されるデータへ参照するためのプレフィックスとなります。ここでは、`iterator = _conf`としているため、値の参照では、`_conf.value.protocol`となっています。`iterator`を定義しない場合、値への参照はブロック名で参照します。ここの例であれば、`allow.value.protocol`のように参照します。
+
+`content`ブロックが、`itrator`の下に定義されています。ここには元の`allow`ブロックに定義される`protocol`と`ports`が定義されています。`for_each`に入力されたデータへの参照は、先の`iterator`の値を使い`_conf.value.protocol`のようになっています。
 
 上記のコードの処理内容は、以下のようになります。
 
@@ -308,9 +314,10 @@ Plan: 2 to add, 0 to change, 0 to destroy.
 ------------------------------------------------------------------------
 ```
 上記のように記述することで、1つのブロック定義で複数のブロックを生成することができます。
+
 # データのループ処理
 Terraformの型として、配列とmapの2つのCollection型があります。Terraformの処理の中で、管理しやすいように定義したデータからTerraformに沿った型に変換する必要があるときがあります。
-例えば、先の`for_each`のブロック全体を繰り返し処理させたいとき、入力データの型をmap型にする必要があります。しかし、管理上配列で管理した方が管理しやすくなることもあります。例えば、subnetworksのmapを以下のようにオブジェクト型配列で定義したとします。
+例えば、先の`for_each`のブロック全体を繰り返し処理させたいとき、入力データの型をmap型にする必要があります。しかし、管理上オブジェクト型の配列で管理した方が管理しやすくなることもあります。例えば、subnetworksのmapを以下のようにオブジェクト型配列で定義したとします。
 
 ```
 locals {
@@ -328,9 +335,10 @@ locals {
   ]
 }
 ```
-上記のようにすると、先程のmapのキーをnameとして明示的に定義することでkeyの意味が分かりやすくなります。しかし、このsubnetworksは配列型のため、for_eachへ代入することができません。そこで、このsubnetworksをmap型に変換する必要があります。こういったときに使う機能として、Terraformは`for`文を提供しています。
+上記のようにすると、先程のmapのキーをnameとして明示的に定義することでkeyの意味が分かりやすくなります。しかし、このsubnetworksは配列型のため、`for_each`へ代入することができません。そこで、このsubnetworksをmap型に変換する必要があります。こういったときに使う機能として、Terraformは`for`文を提供しています。
 
-`for`文は配列やmapを引数にとり各要素を取り出し処理を施した後、配列またはmapを返します。定義の方法は、配列・mapの内部でforを定義し : の後ろでデータを処理し値を返します。配列を返すときは[]の内部でforを定義し、mapを返すときは{}の内部でforを定義します。
+`for`文は ` for <変数> in <Collection型のデータ> : <変数を使った処理>` として定義します。この式を定義できる場所は、配列(`[]`)またはmap(`{}`)内となります。`for`文は定義された場所のデータ型を返します。つまり、配列内で定義したなら配列のデータが生成され、map内で定義したならmapのデータが生成されます。
+配列型を出力させるときは、必ずキー値を定義する必要があります。キーと値の区切りには`=>`の記号を使います。また、このキー値は重複しないようにする必要があります。
 
 先の例で、subnetworksの配列を配列内のnameの値をkeyとするmap型を返すのは下記のようにおこないます。
 
@@ -353,9 +361,25 @@ locals {
 }
 ```
 
-この例では v.nameがキーとなり v がmapの値となります。つまり、map型のキーと値区切りは =>でおこないます。inの後ろにCollection型のデータを配置し、各要素をforとinの間の変数に代入します。:の後ろの処理で内容を実施します。
+この例ではmapの内部(`{}`)で`for`文を定義しているので、map型のデータが出力され、`subnetworks_map`の変数に代入されます。`subnetworks`の配列変数からオブジェクトデータ(`{}`のかたまり)を1つずつ取り出し、その値を変数`v`に入力します。そして`:`の後ろの部分 `v.name => v`で、オブジェクトの`name`の値をキーとし、データをオブジェクトデータとするようにmapを作るよう処理しています。
+`subnetworks_map`のデータは、最終的に以下のようなデータ構造となります。
 
-for文を使い、配列内のすべての文字列を大文字に変換する例を以下に示します。
+```
+subnetworks_map = {
+  "oska-network" = {
+    "cidr" = "192.168.20.0/24"
+    "name" = "oska-network"
+    "region" = "asia-northeast2"
+  }
+  "tokyo-network" = {
+    "cidr" = "192.168.10.0/24"
+    "name" = "tokyo-network"
+    "region" = "asia-northeast1"
+  }
+}
+```
+
+また、配列を出力する例として、以下のような`hoge`,`fuga`,`piyo`という文字列を格納した配列の各文字列の文字をすべて大文字に変換した配列を生成する方法を紹介します。ここでは、大文字に変換する関数`upper()`を用います。
 
 ```
 locals {
@@ -367,4 +391,15 @@ locals {
 }
 ```
 
+出力結果は以下のようになります。
+
+```
+for_large_arry = [
+  "HOGE",
+  "FUGA",
+  "PIYO",
+]
+```
+
 # さいごに
+Terraformの繰り返し処理機能である`for_each`と`for`の使い方について紹介しました。この機能を使うことで、重複する処理を1つにまとめることができるため非常に便利です。多用するとコードが複雑になるため、考えて利用する必要がありますが、うまく設計すると非常に強力な機能なのでうまく取り入れましょう。
