@@ -1,9 +1,9 @@
 ---
 title: Terraformのループ処理(for_each,for)について
-emoji: 🗂
+emoji: 📝
 type: tech
 topics: [Terraform, GCP]
-published: false
+published: true
 ---
 
 # 概要
@@ -17,7 +17,7 @@ Terraformではループ処理として、次の2つの処理を提供してい�
 
 Terraformリソースのループ処理は、`resource`ブロックなどを繰り返し実行します。例えば、GCP内のVPCネットワークに複数のsubnetworkを作成するとき、`google_compute_subnetwork`リソースにループ処理を適用すると、1つのリソース定義で済みます。
 
-データのループ処理は、`map`や`list`などのCollection型をもっています。これらの値を1つずつ取り出し別のデータを作成する必要があるときがあります。Terraformでは`map`や`list`を入力し、新たな`map`,`list`を生成する機能を提供しています。
+データのループ処理は、`map`や`list`などのCollection型をの値を1つずつ取り出し別のデータを作成します。例えば、小文字の文字列で定義した配列データをすべて大文字に変換しなおしたデータを生成するなどが可能になります。
 
 # Terraformリソースのループ処理
 Terraformのリソースのループ処理としては以下の機能を提供しています。
@@ -58,7 +58,7 @@ locals {
 `map`型の出力は以下のようになります。
 
 ```
-map_type = {
+subnetworks = {
   "oska-network" = {
     "cidr" = "192.168.20.0/24"
     "region" = "asia-northeast2"
@@ -83,7 +83,7 @@ locals {
 `strings`型の出力は以下のように、`toset()`が間に挟まります。
 
 ```
-strings_type = toset([
+subnetworks = toset([
   "osaka-network",
   "tokyo-network",
 ])
@@ -195,7 +195,13 @@ Plan: 3 to add, 0 to change, 0 to destroy.
 
 ```
 
-`for_each`でループ処理をおこなうと、`<block name>.<block instance name>["each.key"]`でリソースのオブジェクトが作成され。上記の例であれば、`google_compute_subnetwork.main["osaka-network"]`,`google_compute_subnetwork.main["tokyo-network"]`のようにサブネットワークの各リソースオブジェクトが作成されます。
+`for_each`でループ処理をおこなうと、`<block type>.<block name>.<block instance name>["each.key"]`でリソースのオブジェクトが作成され。上記の例であれば、`google_compute_subnetwork.main["osaka-network"]`,`google_compute_subnetwork.main["tokyo-network"]`のようにサブネットワークの各リソースオブジェクトが作成されます。ブロックがリソースの場合、`<block type>`は省略されます。別のresourceで生成したオブジェクトを参照する場合は、`<block name>.<block instance name>["each.key"]`を使います。
+
+各ブロックごとで生成されるオブジェクト名は次のようになります。
+
+- resource: `google_compute_subnetwork.main["tokyo-network"]`
+- module: `module.network["tokyo-network"]` (`network`モジュールを`for_each`で繰り返したとき)
+- data: `data.google_compute_subnetwork.main["tokyo-network"]` (`google_compute_subnetwork`のdataブロックをmainと名付け`for_each`繰り返した場合)
 
 また、`strings`型を`for_each`に入力すると、各文字列がキー値、データ値として入力されます。そのため、キーおよびデータへは`each.key`,`each.value`で参照できます。
 
@@ -361,7 +367,7 @@ locals {
 }
 ```
 
-この例ではmapの内部(`{}`)で`for`文を定義しているので、map型のデータが出力され、`subnetworks_map`の変数に代入されます。`subnetworks`の配列変数からオブジェクトデータ(`{}`のかたまり)を1つずつ取り出し、その値を変数`v`に入力します。そして`:`の後ろの部分 `v.name => v`で、オブジェクトの`name`の値をキーとし、データをオブジェクトデータとするようにmapを作るよう処理しています。
+この例ではmapの内部(`{}`)で`for`文を定義しているので、map型のデータが出力され、`subnetworks_map`の変数に代入されます。`subnetworks`の配列変数からオブジェクトデータ(`{}`のかたまり)を1つずつ取り出し、その値を変数`v`に入力します。そして`:`の後ろの部分 `v.name => v`で、オブジェクトの`name`の値をキーとし、データをオブジェクトデータとするmapを作るよう処理しています。
 `subnetworks_map`のデータは、最終的に以下のようなデータ構造となります。
 
 ```
@@ -390,11 +396,11 @@ locals {
   large_strings = [ for v in local.little_strings : upper(v) ]
 }
 ```
-
-出力結果は以下のようになります。
+配列はキー値は不要であるため、`:`の後ろはデータの処理のみとなっています。
+変換したデータの出力結果は以下のようになります。
 
 ```
-for_large_arry = [
+large_strings = [
   "HOGE",
   "FUGA",
   "PIYO",
