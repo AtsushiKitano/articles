@@ -2,7 +2,7 @@
 title: CINCを使ったGCPの設定内容のテスト
 emoji: 📝
 type: tech
-topics: [gcp, Inspec, CINC]
+topics: [gcp, InSpec, CINC]
 published: true
 ---
 
