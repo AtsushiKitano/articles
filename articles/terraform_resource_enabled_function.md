@@ -9,6 +9,23 @@ published: true
 # 概要
 Terraformのリソースのon/off機能を`for_each`で実現する方法について説明します。
 
+`for_each`と`if`文でTerraformブロックをon/offする機能の実装は、以下の通りです。
+
+```
+locals {
+  enabled = true
+  
+  vpc_name = local.enabled ? ["sample"] : []
+}
+
+resource google_compute_network main {
+  for_each = toset(local.vpc_name)
+  
+  name = each.value
+  auto_create_subnetworks = false
+}
+```
+
 # 実装方法
 `for_each`に空の値を入力すると、処理を実行しません。たとえば、以下のように`google_compute_network`のブロックに空の配列を入力したとき、`google_compute_network.main`は実行されません。
 
