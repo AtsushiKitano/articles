@@ -10,7 +10,7 @@ published: true
 Terraformのリソースのon/off機能を`for_each`で実現する方法について説明します。
 
 `for_each`と`if`文でTerraformブロックをon/offする機能の実装は、以下の通りです。
-
+`enabled`のbool値でリソースの作成を制御します。
 ```
 locals {
   enabled = true
