@@ -30,21 +30,11 @@ Goのライブラリであり、HTTPリクエストを使いテストの記述�
 TerratestはGoライブラリであり、実行環境は1.13以上のバージョンである必要があります。
 
 Terratestのライブラリは、以下のように取得します。
-以下では、terratestのterraform,gcp,http-helper ライブラリの取得方法を示します。
+以下では、terratestのライブラリの取得方法を示します。
 
 - terratestライブラリ
 ```
-go get github.com/gruntwork-io/terratest/modules/terraform
-```
-
-- gcpライブラリ
-```
-go get github.com/gruntwork-io/terratest/modules/gcp
-```
-
-- http-helperライブラリ
-```
-github.com/gruntwork-io/terratest/modules/http-helper
+go get github.com/gruntwork-io/terratest
 ```
 
 また、これらライブラリに依存するするライブラリを取得する必要があります。
